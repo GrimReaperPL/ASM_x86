@@ -1,6 +1,6 @@
 # Program obracający obrazek o 90stopni zapisany w pliku .BMP
 
-UPRAWNIENIA = 0b110110110	#chmod 666
+UPRAWNIENIA = 0b111111111	#chmod 666
 DO_ODCZYTU = 0
 DO_ZAPISU = 1
 OD_POCZATKU = 0
@@ -32,6 +32,10 @@ start_offset:	.long	0
 width:			.long	0
 height:			.long	0
 rozmiar:		.long	0
+
+r:	.byte 0
+g:	.byte 0
+b:	.byte 0
 
 info_zrodlo:	.ascii	"Podaj nazwe pliku wejsciowego [.bmp]: \0"
 info_zrodlo_size =	. - info_zrodlo
@@ -68,13 +72,13 @@ _start:
 	movl	$info_zrodlo, %ecx
 	movl	$STDOUT, %ebx
 	movl	$WRITE, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 	
 	movl	$nazwa_pliku_size, %edx
 	movl	$nazwa_pliku, %ecx
 	movl	$STDIN, %ebx
 	movl	$READ, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 	
 	decl	%eax
 	movb	$0, nazwa_pliku( ,%eax, 1)		#na koncu musi byc \0 a nie \n
@@ -83,13 +87,13 @@ _start:
 	movl	$info_cel, %ecx
 	movl	$STDOUT, %ebx
 	movl	$WRITE, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 	
 	movl	$nazwa_docelowa_size, %edx
 	movl	$nazwa_docelowa, %ecx
 	movl	$STDIN, %ebx
 	movl	$READ, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	decl	%eax
 	movb	$0, nazwa_docelowa( ,%eax, 1)		#na koncu musi byc \0 a nie \n
@@ -98,7 +102,7 @@ _start:
 	movl	$DO_ODCZYTU, %ecx
 	movl	$nazwa_pliku, %ebx
 	movl	$SYS_OPEN, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 	cmpl	$0, %eax
 	jl		blad
 	movl	%eax, plik_zrodlo			#zapisany deskryptor pliku
@@ -107,7 +111,7 @@ _start:
 	movl	$DO_ZAPISU, %ecx
 	movl	$nazwa_docelowa, %ebx
 	movl	$SYS_CREAT, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 	cmpl	$0, %eax
 	jl		blad
 	movl	%eax, plik_cel				#zapisany deskryptor pliku
@@ -117,7 +121,7 @@ _start:
 	movl	$dane_chwilowe, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$READ, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	xorl	%eax, %eax
 	movw	dane_chwilowe, %ax			#powinno byc 4D42 czyli BM
@@ -129,13 +133,13 @@ _start:
 	movl	$OFFSET_IMG_START, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$SYS_LSEEK, %eax
-	int		$SYSCALL					#przesuwamy sie do 10 bajtu
+	int	$SYSCALL					#przesuwamy sie do 10 bajtu
 
 	movl	$4, %edx
 	movl	$dane_chwilowe, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$READ, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 	
 	movl	dane_chwilowe, %eax
 	movl	%eax, start_offset			#adres startu danych z pliku (przeważnie == 54 == 0x36)
@@ -145,13 +149,13 @@ _start:
 	movl	$OFFSET_WIDTH, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$SYS_LSEEK, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	$4, %edx
 	movl	$dane_chwilowe, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$READ, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	dane_chwilowe, %eax
 	movl	%eax, width					#szerokość obrazka
@@ -160,28 +164,28 @@ _start:
 	movl	$OFFSET_HEIGHT, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$SYS_LSEEK, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	$4, %edx
 	movl	$dane_chwilowe, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$READ, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	dane_chwilowe, %eax
-	movl	%eax, width					#wysokość obrazka
+	movl	%eax, height					#wysokość obrazka
 
 	movl	$OD_POCZATKU, %edx
 	movl	$OFFSET_SIZE_IMG, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$SYS_LSEEK, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	$4, %edx
 	movl	$dane_chwilowe, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$READ, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	dane_chwilowe, %eax
 	movl	%eax, rozmiar				#rozmiar tablicy danych (trza zaalokowac)
@@ -191,97 +195,151 @@ _start:
 	movl	$0, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$SYS_LSEEK, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	$rozmiar_naglowka, %edx
 	movl	$naglowek, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$READ, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 #alokacja pamieci na tablice kolorow
 	xorl	%ebx, %ebx
 	movl	$SYS_BRK, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	%eax, koniec_bss
 	movl	%eax, bufor_tymczasowy
 	movl	%eax, %ebx
 	addl	rozmiar, %ebx				#dodaj rozmiar tablicy danych (do zaalokowania)
 	movl	$SYS_BRK, %eax
-	int		$SYSCALL					#zaalokowano pamiec (narazie tylko na tablice poczatkowa)
+	int	$SYSCALL					#zaalokowano pamiec (narazie tylko na tablice poczatkowa)
 
 #wczytywanie danych
 	movl	$OD_POCZATKU, %edx
 	movl	start_offset, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$SYS_LSEEK, %eax
-	int		$SYSCALL					#czytanie ustawione na poczatek pliku
+	int	$SYSCALL					#czytanie ustawione na poczatek pliku
 
 	movl	rozmiar, %edx
 	movl	$bufor_tymczasowy, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$READ, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 #zaalokuj na bufor zwrotny (tablice z gotowymi danymi)
 	xorl	%ebx, %ebx
 	movl	$SYS_BRK, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	%eax, bufor_zwrotny			#teraz w bufor_zwrotny mamy adres naszego bufora
 	movl	%eax, %ebx
 	addl	rozmiar, %ebx				#dodaj rozmiar tablicy danych (do zaalokowania)
 	movl	$SYS_BRK, %eax
-	int		$SYSCALL					#zaalokowano pamiec na tablice wynikowa
+	int	$SYSCALL					#zaalokowano pamiec na tablice wynikowa
 
 #kopiowanie przekreconego obrazka o 90 stopni (narazie tylko kopiowanie)
+#	movl	bufor_zwrotny, %edi
+#	movl	$bufor_tymczasowy, %esi
+#	xorl	%eax, %eax
+#	xorl	%edx, %edx
+#	movl	width, %ebx
+#	movl	rozmiar, %ecx
+#kopiuj:
+#	movb	(%esi, %edx, 1), %al
+#	movb	%al, (%edi, %edx, 1)
+#	incl	%edx
+#	loop	kopiuj
+	pushl	%ebp
+	movl	$bufor_tymczasowy, %edi
+
+	movl	width, %ecx
+	#imull	$3, %ecx				#kazdy sklada sie z BGR (odwrotna kolejnosc)
+	movl	height, %ebp
+	#imull	$3, %ecx
+	movl	$0, %eax				 #<- x (width - obecny)		
+petla:
+	movl	$0, %edx				#<- y (height - obecny)
+petla2:
+	movl	%eax, %esi				# bierząca_szerokość -> %esi
+	imull	%ebp, %esi				# mnożenie razy szerokość wiersza
+	addl	%edx, %esi				# dodanie wysokości obecnej
+	imull	$3, %esi				# mnozenie razy 3 bo mamy 3 kolory
+	movl	$bufor_tymczasowy, %edi
+	pushl	%esi
+	movb	(%edi, %esi, 1), %bl	# bufor_tymczasowy[%eax][%edx]	bufor[x][y]
+	movb	%bl, b	
+	incl	%esi	
+	movb	(%edi, %esi, 1), %bl	# bufor_tymczasowy[%eax][%edx]	bufor[x][y]
+	movb	%bl, g
+	incl	%esi	
+	movb	(%edi, %esi, 1), %bl	# bufor_tymczasowy[%eax][%edx]	bufor[x][y]
+	movb	%bl, r
+	popl	%esi
+
+	movl	%edx, %esi				# bieżąca wysokość
+	imull	%ecx, %esi				# mnożenie razy cała wysokość
+	addl	%ebp, %esi				# dodanie szerokości obecnej
+	decl	%esi					# odejcie jedynki
+	subl	%eax, %esi
+	imull	$3, %esi
 	movl	bufor_zwrotny, %edi
-	movl	$bufor_tymczasowy, %esi
-	xorl	%eax, %eax
-	xorl	%edx, %edx
-	movl	rozmiar, %ecx
-kopiuj:
-	movb	(%esi, %edx, 1), %al
-	movb	%al, (%edi, %edx, 1)
+	movb	b, %bl
+	movb	%bl, (%edi, %esi, 1)	# bufor_zwrotny[%edx][width-1-%eax] zwrot[y][width-1-x]
+	incl	%esi
+	movb	g, %bl
+	movb	%bl, (%edi, %esi, 1)	# bufor_zwrotny[%edx][width-1-%eax] zwrot[y][width-1-x]
+	incl	%esi
+	movb	r, %bl
+	movb	%bl, (%edi, %esi, 1)	# bufor_zwrotny[%edx][width-1-%eax] zwrot[y][width-1-x]
+		
 	incl	%edx
-	loop	kopiuj
+	cmpl	%edx, %ebp
+	jg	petla2
+
+	incl	%eax	
+	cmpl	%eax, %ecx
+	jne	petla
+
+	popl	%ebp
 
 #nanieś zmiany w nagłówku (zamien szerokość z wysokością)
-	#movl	width, %eax
-	#movl	$OFFSET_HEIGHT, %edi
-	#movl	%eax, naglowek( ,%edi, 1)
+	movl	width, %eax
+	movl	$OFFSET_HEIGHT, %edi
+	movl	%eax, naglowek( ,%edi, 1)
 
-	#movl	height, %eax
-	#movl	$OFFSET_WIDTH, %edi
-	#movl	%eax, naglowek( ,%edi,1)
+	movl	height, %eax
+	movl	$OFFSET_WIDTH, %edi
+	movl	%eax, naglowek( ,%edi,1)
 
 zapisz_do_pliku:
 	movl	$rozmiar_naglowka, %edx
 	movl	$naglowek, %ecx
 	movl	plik_cel, %ebx
 	movl	$WRITE, %eax
-	int		$SYSCALL					#najpierw leci naglowek
+	int	$SYSCALL					#najpierw leci naglowek
 
 	movl	rozmiar, %edx
 	movl	bufor_zwrotny, %ecx
 	movl	plik_cel, %ebx
 	movl	$WRITE, %eax
-	int		$SYSCALL					#potem cała reszta
+	int	$SYSCALL					#potem cała reszta
 
 zwolnij_pamiec:
 	movl	koniec_bss, %ebx
 	movl	$SYS_BRK, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 zamkniecie_plikow:
 	movl	plik_zrodlo, %ebx
 	movl	$SYS_CLOSE, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	plik_cel, %ebx
 	movl	$SYS_CLOSE, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
+	movl	$0, %eax
 	jmp		koniec
 
 blad:
@@ -289,14 +347,14 @@ blad:
 	movl	$info_blad, %ecx
 	movl	$STDOUT, %ebx
 	movl	$WRITE, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 
 	movl	$-1, %eax 
 	jmp		koniec
 
 koniec:
 	movl	$EXIT, %eax
-	int		$SYSCALL
+	int	$SYSCALL
 	
 	
 	
