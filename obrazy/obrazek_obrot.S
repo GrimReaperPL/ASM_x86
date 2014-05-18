@@ -1,6 +1,6 @@
 # Program obracający obrazek o 90stopni zapisany w pliku .BMP
 
-UPRAWNIENIA = 0b111111111	#chmod 666
+UPRAWNIENIA = 0b111111111	#chmod 777 (cos nie dziala)
 DO_ODCZYTU = 0
 DO_ZAPISU = 1
 OD_POCZATKU = 0
@@ -45,6 +45,9 @@ info_cel_size =	. - info_cel
 
 info_blad:	.ascii	"Blad otwarcia pliku.\n\0"
 info_blad_size = . - info_blad
+
+info_dziala:	.ascii	"eax = %d edx = %d.\n\0"
+info_dziala_size = . - info_dziala
 
 bufor_zwrotny:	.long	0		#przechowuje adres w pamieci
 
@@ -104,7 +107,7 @@ _start:
 	movl	$SYS_OPEN, %eax
 	int	$SYSCALL
 	cmpl	$0, %eax
-	jl		blad
+	jl	blad
 	movl	%eax, plik_zrodlo			#zapisany deskryptor pliku
 	
 	movl	$UPRAWNIENIA, %edx
@@ -113,7 +116,7 @@ _start:
 	movl	$SYS_CREAT, %eax
 	int	$SYSCALL
 	cmpl	$0, %eax
-	jl		blad
+	jl	blad
 	movl	%eax, plik_cel				#zapisany deskryptor pliku
 
 # najpierw wczytanie nagłówka
@@ -127,7 +130,7 @@ _start:
 	movw	dane_chwilowe, %ax			#powinno byc 4D42 czyli BM
 	cmpw	$SYGNATURA_BMP, %ax
 	movl	$-2, %eax					#plik nie jest w formacie BMP konczymy z kodem bledu -2
-	jnz		zamkniecie_plikow
+	jnz	zamkniecie_plikow
 
 	movl	$OD_POCZATKU, %edx
 	movl	$OFFSET_IMG_START, %ecx
@@ -215,12 +218,16 @@ _start:
 	movl	$SYS_BRK, %eax
 	int	$SYSCALL					#zaalokowano pamiec (narazie tylko na tablice poczatkowa)
 
+	#movl	bufor_tymczasowy, %eax
+	#addl	rozmiar, %eax
+	#movl	%eax, bufor_zwrotny
+
 #wczytywanie danych
 	movl	$OD_POCZATKU, %edx
 	movl	start_offset, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$SYS_LSEEK, %eax
-	int	$SYSCALL					#czytanie ustawione na poczatek pliku
+	int	$SYSCALL					#czytanie ustawione na poczatek danych
 
 	movl	rozmiar, %edx
 	movl	$bufor_tymczasowy, %ecx
@@ -292,6 +299,26 @@ petla2:
 	incl	%esi
 	movb	r, %bl
 	movb	%bl, (%edi, %esi, 1)	# bufor_zwrotny[%edx][width-1-%eax] zwrot[y][width-1-x]
+	
+	pushl	%edx
+	pushl	%ebx
+	pushl	%ecx
+	pushl	%eax
+	pushl	%esi
+	pushl	%ebp
+
+	pushl	%edx
+	pushl	%eax
+	pushl	$info_dziala
+	call	printf
+	addl	$4*3, %esp
+
+	popl	%ebp
+	popl	%esi
+	popl	%eax
+	popl	%ecx
+	popl	%ebx
+	popl	%edx
 		
 	incl	%edx
 	cmpl	%edx, %ebp
@@ -302,6 +329,7 @@ petla2:
 	jne	petla
 
 	popl	%ebp
+
 
 #nanieś zmiany w nagłówku (zamien szerokość z wysokością)
 	movl	width, %eax
