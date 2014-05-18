@@ -1,4 +1,7 @@
 # Program obracający obrazek o 90stopni zapisany w pliku .BMP
+# Kompilacja
+# as --32 obrazek_obrot.S -o obrazek_obrot.o
+# ld obrazek_obrot.o -o obrazek_obrot -melf_i386 -lc -dynamic-linker /lib/ld-linux.so.2
 
 UPRAWNIENIA = 0b111111111	#chmod 777 (cos nie dziala)
 DO_ODCZYTU = 0
@@ -49,6 +52,7 @@ info_blad_size = . - info_blad
 info_dziala:	.ascii	"eax = %d edx = %d.\n\0"
 info_dziala_size = . - info_dziala
 
+bufor_tymczasowy:	.long	0
 bufor_zwrotny:	.long	0		#przechowuje adres w pamieci
 
 .bss
@@ -65,8 +69,8 @@ dane_chwilowe_size = 4
 rozmiar_naglowka = 54
 .lcomm naglowek, rozmiar_naglowka
 
-.lcomm koniec_bss, 4
-.lcomm bufor_tymczasowy, 4				#bedzie alokowany dynamicznie
+#.lcomm koniec_bss, 4
+#.lcomm bufor_tymczasowy, 4				#bedzie alokowany dynamicznie
 
 .text
 .globl	_start
@@ -207,20 +211,25 @@ _start:
 	int	$SYSCALL
 
 #alokacja pamieci na tablice kolorow
-	xorl	%ebx, %ebx
-	movl	$SYS_BRK, %eax
-	int	$SYSCALL
+	#xorl	%ebx, %ebx
+	#movl	$SYS_BRK, %eax
+	#int	$SYSCALL
 
-	movl	%eax, koniec_bss
-	movl	%eax, bufor_tymczasowy
-	movl	%eax, %ebx
-	addl	rozmiar, %ebx				#dodaj rozmiar tablicy danych (do zaalokowania)
-	movl	$SYS_BRK, %eax
-	int	$SYSCALL					#zaalokowano pamiec (narazie tylko na tablice poczatkowa)
+	#movl	%eax, koniec_bss
+	#movl	%eax, bufor_tymczasowy
+	#movl	%eax, %ebx
+	#addl	rozmiar, %ebx				#dodaj rozmiar tablicy danych (do zaalokowania)
+	#movl	$SYS_BRK, %eax
+	#int	$SYSCALL					#zaalokowano pamiec (narazie tylko na tablice poczatkowa)
 
 	#movl	bufor_tymczasowy, %eax
 	#addl	rozmiar, %eax
 	#movl	%eax, bufor_zwrotny
+
+	pushl	rozmiar
+	call	malloc
+	addl	$4, %esp
+	movl	%eax, bufor_tymczasowy
 
 #wczytywanie danych
 	movl	$OD_POCZATKU, %edx
@@ -230,20 +239,29 @@ _start:
 	int	$SYSCALL					#czytanie ustawione na poczatek danych
 
 	movl	rozmiar, %edx
-	movl	$bufor_tymczasowy, %ecx
+	movl	bufor_tymczasowy, %ecx
 	movl	plik_zrodlo, %ebx
 	movl	$READ, %eax
 	int	$SYSCALL
 #zaalokuj na bufor zwrotny (tablice z gotowymi danymi)
-	xorl	%ebx, %ebx
-	movl	$SYS_BRK, %eax
-	int	$SYSCALL
+	#xorl	%ebx, %ebx
+	#movl	$SYS_BRK, %eax
+	#int	$SYSCALL
 
-	movl	%eax, bufor_zwrotny			#teraz w bufor_zwrotny mamy adres naszego bufora
-	movl	%eax, %ebx
-	addl	rozmiar, %ebx				#dodaj rozmiar tablicy danych (do zaalokowania)
-	movl	$SYS_BRK, %eax
-	int	$SYSCALL					#zaalokowano pamiec na tablice wynikowa
+	#movl	%eax, bufor_zwrotny			#teraz w bufor_zwrotny mamy adres naszego bufora
+	#movl	%eax, %ebx
+	#addl	rozmiar, %ebx				#dodaj rozmiar tablicy danych (do zaalokowania)
+	#movl	$SYS_BRK, %eax
+	#int	$SYSCALL					#zaalokowano pamiec na tablice wynikowa
+	
+	#cmpl	$0, %eax
+	#movl	$-10, %eax
+	#jnz	koniec
+
+	pushl	rozmiar
+	call	malloc
+	addl	$4, %esp
+	movl	%eax, bufor_zwrotny
 
 #kopiowanie przekreconego obrazka o 90 stopni (narazie tylko kopiowanie)
 #	movl	bufor_zwrotny, %edi
@@ -258,7 +276,7 @@ _start:
 #	incl	%edx
 #	loop	kopiuj
 	pushl	%ebp
-	movl	$bufor_tymczasowy, %edi
+	#movl	bufor_tymczasowy, %edi
 
 	movl	width, %ecx
 	#imull	$3, %ecx				#kazdy sklada sie z BGR (odwrotna kolejnosc)
@@ -272,7 +290,7 @@ petla2:
 	imull	%ebp, %esi				# mnożenie razy szerokość wiersza
 	addl	%edx, %esi				# dodanie wysokości obecnej
 	imull	$3, %esi				# mnozenie razy 3 bo mamy 3 kolory
-	movl	$bufor_tymczasowy, %edi
+	movl	bufor_tymczasowy, %edi
 	pushl	%esi
 	movb	(%edi, %esi, 1), %bl	# bufor_tymczasowy[%eax][%edx]	bufor[x][y]
 	movb	%bl, b	
@@ -300,25 +318,25 @@ petla2:
 	movb	r, %bl
 	movb	%bl, (%edi, %esi, 1)	# bufor_zwrotny[%edx][width-1-%eax] zwrot[y][width-1-x]
 	
-	pushl	%edx
-	pushl	%ebx
-	pushl	%ecx
-	pushl	%eax
-	pushl	%esi
-	pushl	%ebp
+	#pushl	%edx
+	#pushl	%ebx
+	#pushl	%ecx
+	#pushl	%eax
+	#pushl	%esi
+	#pushl	%ebp
 
-	pushl	%edx
-	pushl	%eax
-	pushl	$info_dziala
-	call	printf
-	addl	$4*3, %esp
+	#pushl	%edx
+	#pushl	%eax
+	#pushl	$info_dziala
+	#call	printf
+	#addl	$4*3, %esp
 
-	popl	%ebp
-	popl	%esi
-	popl	%eax
-	popl	%ecx
-	popl	%ebx
-	popl	%edx
+	#popl	%ebp
+	#popl	%esi
+	#popl	%eax
+	#popl	%ecx
+	#popl	%ebx
+	#popl	%edx
 		
 	incl	%edx
 	cmpl	%edx, %ebp
@@ -354,9 +372,17 @@ zapisz_do_pliku:
 	int	$SYSCALL					#potem cała reszta
 
 zwolnij_pamiec:
-	movl	koniec_bss, %ebx
-	movl	$SYS_BRK, %eax
-	int	$SYSCALL
+	#movl	koniec_bss, %ebx
+	#movl	$SYS_BRK, %eax
+	#int	$SYSCALL
+
+	pushl	bufor_tymczasowy
+	call	free
+	addl	$4, %esp
+
+	pushl	bufor_zwrotny
+	call	free
+	addl	$4, %esp
 
 zamkniecie_plikow:
 	movl	plik_zrodlo, %ebx
